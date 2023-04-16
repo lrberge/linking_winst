@@ -31,3 +31,6 @@ You can find all the source for all the steps in the file [src_algo_steps.R](htt
 ### Acknowledgements
 
 This work has been supported by the FORTE-project, grant number 2021-01552_3.
+
+### Contact
+Feel free to contact me (laurent.berge@u-bordeaux.fr) if you spot any mistake or for any enquiry.
