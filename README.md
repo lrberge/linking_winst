@@ -11,7 +11,7 @@ there is only 7 lines of code to be run to complete the whole exercise (provided
 source data has been properly set up).
 The downside of this is that the source code is harder to read (especially for R beginners).
 
-Details on how to replicate the matching exercise is provided in the document [FORTE_documentation.pdf](https://github.com/lrberge/linking_forte/blob/main/pdf/FORTE-Documentation.pdf).
+Details on how to replicate the matching exercise is provided in the document [WINST_Matching-documentation.pdf](https://github.com/lrberge/linking_winst/blob/main/pdf/WINST_Matching-documentation.pdf).
 Reading this document is highly recommended for setting up R properly.
 
 ### Structure of the code
@@ -30,7 +30,11 @@ You can find all the source for all the steps in the file [src_algo_steps.R](htt
 
 ### Acknowledgements
 
-This work has been supported by the FORTE-project, grant number 2021-01552_3.
+This work has been supported by the WINST-project (http://winst.blogg.lu.se) funded by FORTE grant number 2021-01552_3.
+
+## Suggested citation
+
+Laurent R. Bergé, 2023, "An algorithm to match Swedish registry data to European patents data for the WINST-project", url: https://github.com/lrberge/linking_winst
 
 ### Contact
 Feel free to contact me (laurent.berge@u-bordeaux.fr) if you spot any mistake or for any enquiry.
