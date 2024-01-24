@@ -296,11 +296,11 @@ NumericVector cpp_unitary_stringDist(SEXP Rstr_1, SEXP Rstr_2, int min_char = 0,
 }
 
 
-inline is_end_word(const char &ch){
+inline bool is_end_word(const char &ch){
   return !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'));
 }
 
-inline is_letter(const char &ch){
+inline bool is_letter(const char &ch){
   return !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'));
 }
 

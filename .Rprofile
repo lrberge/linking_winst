@@ -92,6 +92,7 @@ if(!requireNamespace("Rcpp", quietly = TRUE)){
 Rcpp::sourceCpp("src/string_dist.cpp", cacheDir = "_CPP_CACHE")
 Rcpp::sourceCpp("src/integers.cpp", cacheDir = "_CPP_CACHE")
 Rcpp::sourceCpp("src/EM_functions.cpp", cacheDir = "_CPP_CACHE")
+Rcpp::sourceCpp("./src/to_index.cpp", cacheDir = "_CPP_CACHE")
 
 
 ####

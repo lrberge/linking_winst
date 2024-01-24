@@ -21,7 +21,7 @@ if(!file.exists("_DATA/_RAW")){
 ####
 
 
-step0_cleaning_se = function(hard = FALSE){
+step0_cleaning_se = function(hard = FALSE, usage_name = TRUE, letter_variation = TRUE){
   # hard: recreates the data sets even if they have already been created
   
   # STAT-SE stands for 'Statistics Sweden'
@@ -34,7 +34,7 @@ step0_cleaning_se = function(hard = FALSE){
   
   step0_STAT_SE_firstnames(hard)
   
-  step0_STAT_SE_names(hard)
+  step0_STAT_SE_names(hard, usage_name = usage_name, letter_variation = letter_variation)
   
 }
 
@@ -359,8 +359,11 @@ step0_STAT_SE_firstnames = function(hard = FALSE){
   
 }
 
+# usage_name = TRUE ; letter_variation = TRUE ; mem_clean = FALSE
 
-step0_STAT_SE_names = function(hard = FALSE){
+step0_STAT_SE_names = function(hard = FALSE, usage_name = TRUE, letter_variation = TRUE){
+  
+  mem_clean = TRUE
   
   skip = should_fun_be_skipped(hard)
   if(skip) return(invisible(NULL))
@@ -370,12 +373,12 @@ step0_STAT_SE_names = function(hard = FALSE){
   base_indiv = readfst("_DATA/_RAW/STAT-SE_indiv.fst", 
                        "id_se, id_se_seq, @name, @year_(start|end), ^birth", forte = TRUE)
   
+  
+  
   # It should be direct
   
   firstname_all_raw = base_indiv$firstname_all
   fam_names_all_raw = paste(base_indiv$family_name, base_indiv$maiden_name)
-  
-  use_code = base_indiv$firstname_code
   
   #
   # FAMILY NAME
@@ -400,7 +403,7 @@ step0_STAT_SE_names = function(hard = FALSE){
   
   fam_names_all = merge_particle(fam_names_all)
   
-  message("done")
+  message(" done")
   
   #
   # FIRST NAMES
@@ -416,41 +419,9 @@ step0_STAT_SE_names = function(hard = FALSE){
   firstname_all = gsub("\\.", " ", firstname_all_raw, perl = TRUE)
   firstname_all = gsub(" +", " ", firstname_all, perl = TRUE)
   
-  message("done")
+  message(" done")
   
-  #
-  # create the "usage" names
-  #
-  
-  message("creating usage names ...", appendLF = FALSE)
-  
-  uname_1 = uname_2 = character(length(firstname_all))
-  
-  # we also "detach" composed first names (this is how we should do)
-  fnames_split = strsplit2df(firstname_all, split = " |-", addPos = TRUE)
-  
-  base_use = strsplit2df(use_code, split = "", addPos = TRUE)
-  
-  # We don't need use == "10" or use == "12" since they are embeded in the "normal" name search
-  
-  # id_ok: all use names that are exotic
-  id_ok = which(!is.na(use_code) & !use_code %in% c("10", "12") & nchar(use_code) > 0)
-  
-  base_use[, ok := id %in% id_ok]
-  base_use[, n := .N, by = id]
-  
-  base_use_1 = base_use[ok == TRUE & pos == 1, .(id, pos = as.numeric(x))]
-  base_use_2 = base_use[ok == TRUE & pos == 2 & x != "0", .(id, pos = as.numeric(x))]
-  
-  tmp1 = merge(base_use_1, fnames_split, by = c("id", "pos"))
-  uname_1[tmp1$id] = tmp1$x
-  
-  message(".", appendLF = FALSE)
-  
-  tmp2 = merge(base_use_2, fnames_split, by = c("id", "pos"))
-  uname_2[tmp2$id] = tmp2$x
-  
-  message(".", appendLF = FALSE)
+  message("creating the main names data set ...", appendLF = FALSE)
   
   #
   # First names
@@ -466,6 +437,10 @@ step0_STAT_SE_names = function(hard = FALSE){
   
   base_fam_names = name_str_to_name_DB(fam_names_all, "fam_name_", sep = " |-", nmax = 2)
   
+  if(mem_clean){
+    rm(fam_names_all) ; gc()
+  }
+  
   message(".", appendLF = FALSE)
   
   #
@@ -474,55 +449,136 @@ step0_STAT_SE_names = function(hard = FALSE){
   
   base_se_names_raw = base_indiv[, .(id_se_seq, id_se, firstname_all,
                                      family_name, maiden_name)]
+  setkey(base_se_names_raw, id_se_seq)
   
   tmp = .cmerge(base_se_names_raw, base_first_names, 
                 by.x = "id_se_seq", by.y = "id", all.x = TRUE,
                 incl.y = TRUE, unik.y = TRUE)
   
-  tmp2 = .cmerge(tmp, base_fam_names.IU, 
-                 by.x = "id_se_seq", by.y = "id", all.x = TRUE,
-                 incl.y = TRUE, unik.y = TRUE)
+  if(mem_clean){
+    rm(base_se_names_raw, base_first_names) 
+    gc()
+  }
   
-  base_se_names_raw = tmp2
-  setNA(base_se_names_raw, "^first_name", "")
+  base_se_names = .cmerge(tmp, base_fam_names, 
+                          by.x = "id_se_seq", by.y = "id", all.x = TRUE,
+                          incl.y = TRUE, unik.y = TRUE)
   
-  message("done")
+  setkey(base_se_names, id_se_seq)
+  setNA(base_se_names, "^first_name", "")
+  
+  if(mem_clean){
+    rm(tmp, base_fam_names) 
+    gc()
+  }
+  
+  message(" done")
   
   #
   # COMPLETION
   #
   
-  message("completing names", appendLF = FALSE)
+  message("completing names ...", appendLF = FALSE)
   
   # Some first names are abbreviations, we correct them using later information
-  base_se_names = base_se_names_raw
   
   base_se_names[, first_name_1 := complete_with_next(id_se, first_name_1)]
+  message(".", appendLF = FALSE)
   base_se_names[, first_name_2 := complete_with_next(id_se, first_name_2)]
+  message(".", appendLF = FALSE)
   base_se_names[, first_name_3 := complete_with_next(id_se, first_name_3)]
   
-  message("done")
-  
+  message(" done")
   
   #
   # DUPLICATION
   #
   
-  message("adding usage name ...", appendLF = FALSE)
-  
   # A) we add the usage first name
   
-  stopifnot(length(uname_1) == nrow(base_se_names))
+  if(usage_name){
+    
+    message("creating usage names ...", appendLF = FALSE)
+    
+    #
+    # create the "usage" names
+    #
+    
+    use_code = base_indiv$firstname_code
+    
+    uname_1 = uname_2 = character(length(firstname_all))
+    
+    # we also "detach" composed first names (this is how we should do)
+    fnames_split = strsplit2df(firstname_all, split = " |-", addPos = TRUE)
+    
+    base_use = strsplit2df(use_code, split = "", addPos = TRUE)
+    
+    # We don't need use == "10" or use == "12" since they are embeded in the "normal" name search
+    
+    # id_ok: all use names that are exotic
+    id_ok = which(!is.na(use_code) & !use_code %in% c("10", "12") & nchar(use_code) > 0)
+    
+    if(length(id_ok) == 0){
+      message(" absence of usage names, skipped")
+    } else {
+      
+      base_use[, ok := id %in% id_ok]
+      base_use[, n := .N, by = id]
+      
+      base_use_1 = base_use[ok == TRUE & pos == 1, .(id, pos = as.numeric(x))]
+      base_use_2 = base_use[ok == TRUE & pos == 2 & x != "0", .(id, pos = as.numeric(x))]
+      
+      if(mem_clean){
+        rm(base_use) 
+        gc()
+      }
+      
+      tmp1 = merge(base_use_1, fnames_split, by = c("id", "pos"))
+      uname_1[tmp1$id] = tmp1$x
+      
+      if(mem_clean){
+        rm(tmp1, base_use_1) 
+        gc()
+      }
+      
+      message(".", appendLF = FALSE)
+      
+      tmp2 = merge(base_use_2, fnames_split, by = c("id", "pos"))
+      uname_2[tmp2$id] = tmp2$x
+      
+      if(mem_clean){
+        rm(tmp2, base_use_2, fnames_split) 
+        gc()
+      }
+      
+      message(" done")
+      
+      message("appending usage names ...", appendLF = FALSE)
+      
+      stopifnot(length(uname_1) == nrow(base_se_names))
+      
+      qui_use = which(nchar(uname_1) > 0)
+      base_usage = base_se_names[qui_use]
+      base_usage[, first_name_1 := uname_1[qui_use]]
+      base_usage[, first_name_2 := uname_2[qui_use]]
+      base_usage[, first_name_3 := ""]
+      
+      base_se_names = rbindlist(list(base_se_names, base_usage))
+      
+      if(mem_clean){
+        rm(base_usage, uname_1, uname_2) 
+        gc()
+      }
+      
+      message(" done")
+    }
+    
+  }
   
-  qui_use = which(nchar(uname_1) > 0)
-  base_usage = base_se_names[qui_use]
-  base_usage[, first_name_1 := uname_1[qui_use]]
-  base_usage[, first_name_2 := uname_2[qui_use]]
-  base_usage[, first_name_3 := ""]
-  
-  base_se_names = rbindlist(list(base_se_names, base_usage))
-  
-  message("done")
+  if(mem_clean){
+    rm(firstname_all) 
+    gc()
+  }
   
   
   # B) we add the ö, ä and å variations
@@ -531,25 +587,36 @@ step0_STAT_SE_names = function(hard = FALSE){
   # letter_dict = c("ö" = "oe")
   # vars = "(first|fam)_name_"
   
-  message("accentuation variation ...", appendLF = FALSE)
+  if(letter_variation){
+    message("accentuation variation ...", appendLF = FALSE)
   
-  base_oe = dup_data_change_letter(base_se_names, c("ö" = "oe"), "(first|fam)_name_")
-  
-  message(".", appendLF = FALSE)
-  
-  base_ae = dup_data_change_letter(base_se_names, c("ä" = "ae"), "(first|fam)_name_")
-  
-  message(".", appendLF = FALSE)
-  
-  base_aa = dup_data_change_letter(base_se_names, c("å" = "aa"), "(first|fam)_name_")
-  
-  message(".", appendLF = FALSE)
-  
-  base_se_names = rbindlist(list(base_se_names, base_oe, base_ae, base_aa))
+    base_oe = dup_data_change_letter(base_se_names, c("ö" = "oe"), "(first|fam)_name_")
+    
+    message(".", appendLF = FALSE)
+    
+    base_ae = dup_data_change_letter(base_se_names, c("ä" = "ae"), "(first|fam)_name_")
+    
+    message(".", appendLF = FALSE)
+    
+    base_aa = dup_data_change_letter(base_se_names, c("å" = "aa"), "(first|fam)_name_")
+    
+    message(".", appendLF = FALSE)
+    
+    base_se_names = rbindlist(list(base_se_names, base_oe, base_ae, base_aa))
+    
+    if(mem_clean){
+      rm(base_oe, base_ae, base_aa) 
+      gc()
+    }
+    
+    message("done")
+  }
   
   #
   # ASCIIing
   #
+  
+  message("converting to ascii ...", appendLF = FALSE)
   
   name_vars = str_get("(first|fam)_name_", names(base_se_names))
   for(v in name_vars){
@@ -564,8 +631,11 @@ step0_STAT_SE_names = function(hard = FALSE){
   
   se_dates = base_indiv[, "id_se_seq, year_start, year_end, ^birth"]
   
-  tmp = .cmerge(base_se_names, se_dates, incl = TRUE, unik.y = TRUE)
-  base_se_names = tmp
+  base_se_names = .cmerge(base_se_names, se_dates, incl = TRUE, unik.y = TRUE)
+  if(mem_clean){
+    rm(se_dates, base_indiv) 
+    gc()
+  }
   
   #
   # full name information
@@ -573,6 +643,8 @@ step0_STAT_SE_names = function(hard = FALSE){
   
   base_se_names[, name_raw := trimws(paste0(firstname_all, ", ", family_name, " ", maiden_name))]
   base_se_names[, c("firstname_all", "family_name", "maiden_name") := NULL]
+  
+  gc()
   
   #
   # save
@@ -1108,9 +1180,10 @@ step2_BILAT_employer = function(hard = FALSE){
   
   cat("\ncreating the address index....")
   
-  city_street_number = to_integer(c(se_emp_simple$se_emp_city, inv_emp_simple$inv_emp_city),
-                                  c(se_emp_simple$se_emp_street_name, inv_emp_simple$inv_emp_street_name),
-                                  c(se_emp_simple$se_emp_street_nb, inv_emp_simple$inv_emp_street_nb))
+  city_street_number = to_index(c(se_emp_simple$se_emp_city, inv_emp_simple$inv_emp_city),
+                                c(se_emp_simple$se_emp_street_name, inv_emp_simple$inv_emp_street_name),
+                                c(se_emp_simple$se_emp_street_nb, inv_emp_simple$inv_emp_street_nb))
+  
   index_se = 1:nrow(se_emp_simple)
   se_emp_simple[, address_id := city_street_number[index_se]]
   
@@ -1565,7 +1638,7 @@ step4_EXTRA_bilat = function(hard = FALSE){
   base_coinventors_names[, appln_id := base_coinventors$appln_id]
   base_coinventors_names[, id_inv_seq := base_coinventors$id_inv_seq]
   
-  base_coinventors_names[, name_id := to_integer(first_name_1, fam_name_1)]
+  base_coinventors_names[, name_id := to_index(first_name_1, fam_name_1)]
   
   base_coinv = base_coinventors_names[, .(appln_id, id_inv_seq, name_id_co = name_id)]
   

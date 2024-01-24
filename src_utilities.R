@@ -10,9 +10,12 @@ library(fixest)
 library(data.table)
 library(dreamerr)
 
+source("./src_indexthis.R")
+
 ####
 #### Main algorithm ####
 ####
+
 
 # INFO:
 # - critical function that makes the matching by names of the inventors 
@@ -735,6 +738,7 @@ match_by_name = function(x, y, by, initials = NULL, fuzzy = NULL, empty = NULL,
 #### string tools ####
 ####
 
+
 # INFO:
 # - some handy string manipulation tools
 
@@ -752,7 +756,7 @@ str_op = function(x, op, do_unik = NULL){
   if(is.null(do_unik)) do_unik = n > 1e6
   
   if(do_unik){
-    x_int = cpp_to_integer(x)
+    x_int = to_index(x)
     x_small = x[!duplicated(x_int)]
     
     res_small = str_op(x_small, op, do_unik = FALSE)
@@ -2087,11 +2091,11 @@ aggregate_rows = function(old, new, key, year){
   setNA_char(base_full)
   
   # Creating the identifiers
-  id = to_integer_fast(base_full[[key]])
+  id = to_index(base_full[[key]])
   
   vars = setdiff(names(base_full), key)
   arglist = unclass(base_full)[vars]
-  id_all_vars = do.call(to_integer_fast, arglist)
+  id_all_vars = do.call(to_index, arglist)
   
   # Finding out duplicate rows
   n_old = nrow(old)
@@ -2369,6 +2373,7 @@ proc_hard_msg = function(){
 #### misc ####
 ####
 
+
 deparse_long = function (x) {
   dep_x = deparse(x, width.cutoff = 500)
   if (length(dep_x) == 1) {
@@ -2562,6 +2567,7 @@ missnull = function(x){
 ####
 #### controlled merge ####
 ####
+
 
 # INFO:
 # - this is a set of function to make merging a safe and informative operation
@@ -2876,9 +2882,9 @@ cmerge = function(x, y, by = NULL,
   gt("concatenation into a big vector")
   
   # From now on we only manipulate integers, so everything is fast
-  single_key = do.call(to_integer, full.keys)
+  single_key = do.call(to_index, full.keys)
   
-  gt("to_integer on the vector")
+  gt("to_index on the vector")
   
   x.skey = single_key[1:n_x]
   y.skey = single_key[(n_x + 1):(n_x + n_y)]
@@ -3223,7 +3229,7 @@ compute_unik_exclusive_sub = function(x_list, y_list, keys, display){
     xi = x_list[[i]]
     yi = y_list[[i]]
     
-    xy_int = to_integer(c(xi, yi))
+    xy_int = to_index(c(xi, yi))
     xi_int = xy_int[1:n_x]
     yi_int = xy_int[(n_x + 1):(n_x + n_y)]
     
@@ -3245,12 +3251,12 @@ compute_unik_exclusive = function(x, y, keys, display = "extensive", add_attr = 
   # how many values of x (y) are in y (x)?
   # add_attr: information on whether the keys are unique + NA information
   
-  x_int_all = to_integer(x, add_items = TRUE, items.list = TRUE)
-  x_int = x_int_all$x
+  x_int_all = to_index(x, items.out = TRUE, out.list = TRUE)
+  x_int = x_int_all$index
   x_items = x_int_all$items
   
-  y_int_all = to_integer(y, add_items = TRUE, items.list = TRUE)
-  y_int = y_int_all$x
+  y_int_all = to_index(y, items.out = TRUE, out.list = TRUE)
+  y_int = y_int_all$index
   y_items = y_int_all$items
   
   n_unik.x = length(x_int_all$items)
@@ -3447,6 +3453,7 @@ format_difftime = function(x){
 #### Name manipulation ####
 ####
 
+
 # Hard values:
 PARTICLES = "de|du|le|la|st|mac|mc|opde|van|von|vom|zur|im|dem|vande|vanden|vander|ten|ter|af|di|da|dal|della|delos|delas|dela|del|das|dos|el|al|ben"
 
@@ -3582,6 +3589,10 @@ dup_data_change_letter = function(data, letter_dict, vars){
   }
   
   data_sub = data[qui == TRUE]
+  
+  if(nrow(data_sub) == 0){
+    return(data_sub)
+  }
   
   # now the replacement
   for(v in name_vars){
@@ -3884,7 +3895,7 @@ clean_employer_name_se = function(x, do_unik = NULL){
   if(is.null(do_unik)) do_unik = n > 1e6
   
   if(do_unik){
-    x_int = cpp_to_integer(x)
+    x_int = to_index(x)
     x_small = x[!duplicated(x_int)]
     
     res_small = clean_employer_name_se(x_small, do_unik = FALSE)
@@ -3942,6 +3953,7 @@ make_pattern = function(x, dict = NULL, accent = FALSE){
 #### bilateral variables ####
 ####
 
+
 tech_sim = function(x, y, cuts = c(1, 3, 4, 7)){
   # compares technology codes:
   # H03M007 & H04L012 => 1
@@ -3965,6 +3977,7 @@ tech_sim = function(x, y, cuts = c(1, 3, 4, 7)){
 ####
 #### Address extraction ####
 ####
+
 
 extract_city = function(x){
   str_op(x, "'[[:digit:]]=> 'R, W, w")
@@ -4006,7 +4019,7 @@ extract_se_address_patents = function(address_raw, box_valid = FALSE){
   
   address_raw_origin = address_raw
   
-  address_int = cpp_to_integer(address_raw)
+  address_int = to_index(address_raw)
   
   qui_dup = duplicated(address_int)
   address_raw = address_raw[!qui_dup]
