@@ -763,7 +763,7 @@ str_op = function(x, op, do_unik = NULL){
     res = res_small[x_int]
   } else {
     operation = paste0(op, " ? x")
-    res = .dsb(operation)
+    res = dsb(operation)
   }
   
   res
@@ -2411,7 +2411,7 @@ check_set_charin = function(x, choices, choice_name){
     
     if(!is.null(x_nm)){
       if(length(x_nm) == 1){
-        x_nm = .dsb("S ? x_nm")
+        x_nm = dsb("S ? x_nm")
       }
       
       if(length(x_nm) != length(x)){
